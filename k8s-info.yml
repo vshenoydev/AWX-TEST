@@ -4,6 +4,36 @@
   become: yes
   
   tasks:
+    - name: Check if kubectl is already installed
+      command: which kubectl
+      register: kubectl_check
+      failed_when: false
+      changed_when: false
+    
+    - name: Download kubectl binary
+      get_url:
+        url: "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
+        dest: /tmp/kubectl
+        mode: '0755'
+      when: kubectl_check.rc != 0
+    
+    - name: Install kubectl to /usr/local/bin
+      copy:
+        src: /tmp/kubectl
+        dest: /usr/local/bin/kubectl
+        mode: '0755'
+        remote_src: yes
+      when: kubectl_check.rc != 0
+    
+    - name: Verify kubectl installation
+      command: kubectl version --client
+      register: kubectl_version
+      changed_when: false
+    
+    - name: Display kubectl version
+      debug:
+        msg: "{{ kubectl_version.stdout }}"
+    
     - name: Get all namespaces
       command: kubectl get namespaces -o json
       register: namespaces
