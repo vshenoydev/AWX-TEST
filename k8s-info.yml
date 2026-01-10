@@ -1,6 +1,6 @@
 ---
 - name: Gather Kubernetes Cluster Information
-  hosts: all
+  hosts: localhost
   become: yes
   
   tasks:
