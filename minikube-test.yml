@@ -24,7 +24,7 @@
         msg: "{{ disk_usage.stdout_lines }}"
     
     - name: List running containers
-      command: docker ps --format "table {{.Names}}\t{{.Status}}"
+      shell: docker ps --format "table {{.Names}}\t{{.Status}}"
       register: containers
       changed_when: false
     
