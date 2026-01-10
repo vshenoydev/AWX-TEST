@@ -1,0 +1,36 @@
+---
+- name: Gather Kubernetes Cluster Information
+  hosts: all
+  become: yes
+  
+  tasks:
+    - name: Get all namespaces
+      command: kubectl get namespaces -o json
+      register: namespaces
+      changed_when: false
+    
+    - name: Parse namespaces
+      set_fact:
+        ns_list: "{{ (namespaces.stdout | from_json).items | map(attribute='metadata.name') | list }}"
+    
+    - name: Display namespaces
+      debug:
+        msg: "Namespaces: {{ ns_list }}"
+    
+    - name: Get all pods across all namespaces
+      command: kubectl get pods --all-namespaces -o wide
+      register: all_pods
+      changed_when: false
+    
+    - name: Display pods
+      debug:
+        msg: "{{ all_pods.stdout_lines }}"
+    
+    - name: Get cluster info
+      command: kubectl cluster-info
+      register: cluster_info
+      changed_when: false
+    
+    - name: Display cluster info
+      debug:
+        msg: "{{ cluster_info.stdout_lines }}"

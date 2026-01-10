@@ -1,0 +1,41 @@
+---
+- name: Backup Kubernetes Resources
+  hosts: all
+  become: yes
+  vars:
+    backup_dir: "/tmp/k8s-backup-{{ ansible_date_time.epoch }}"
+  
+  tasks:
+    - name: Create backup directory
+      file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: '0755'
+    
+    - name: Backup all deployments
+      shell: |
+        kubectl get deployments --all-namespaces -o yaml > {{ backup_dir }}/deployments.yaml
+      changed_when: true
+    
+    - name: Backup all services
+      shell: |
+        kubectl get services --all-namespaces -o yaml > {{ backup_dir }}/services.yaml
+      changed_when: true
+    
+    - name: Backup all configmaps
+      shell: |
+        kubectl get configmaps --all-namespaces -o yaml > {{ backup_dir }}/configmaps.yaml
+      changed_when: true
+    
+    - name: List backup files
+      find:
+        paths: "{{ backup_dir }}"
+        patterns: "*.yaml"
+      register: backup_files
+    
+    - name: Display backup location
+      debug:
+        msg: 
+          - "Backup completed successfully"
+          - "Location: {{ backup_dir }}"
+          - "Files: {{ backup_files.files | map(attribute='path') | list }}"

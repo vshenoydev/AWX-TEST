@@ -1,0 +1,51 @@
+---
+- name: Test Minikube Node Management
+  hosts: all
+  gather_facts: yes
+  become: yes
+  
+  tasks:
+    - name: Display system information
+      debug:
+        msg:
+          - "Hostname: {{ ansible_hostname }}"
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Kernel: {{ ansible_kernel }}"
+          - "Total Memory: {{ ansible_memtotal_mb }} MB"
+          - "CPU Cores: {{ ansible_processor_vcpus }}"
+    
+    - name: Check disk usage
+      command: df -h /
+      register: disk_usage
+      changed_when: false
+    
+    - name: Display disk usage
+      debug:
+        msg: "{{ disk_usage.stdout_lines }}"
+    
+    - name: List running containers
+      command: docker ps --format "table {{.Names}}\t{{.Status}}"
+      register: containers
+      changed_when: false
+    
+    - name: Display containers
+      debug:
+        msg: "{{ containers.stdout_lines }}"
+    
+    - name: Create test file
+      copy:
+        content: |
+          This file was created by AWX
+          Timestamp: {{ ansible_date_time.iso8601 }}
+        dest: /tmp/awx-test.txt
+        mode: '0644'
+    
+    - name: Verify file creation
+      stat:
+        path: /tmp/awx-test.txt
+      register: test_file
+    
+    - name: Show result
+      debug:
+        msg: "Test file created successfully at /tmp/awx-test.txt"
+      when: test_file.stat.exists

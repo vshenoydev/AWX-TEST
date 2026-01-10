@@ -1,0 +1,38 @@
+---
+- name: Install Useful Tools on Minikube
+  hosts: all
+  become: yes
+  
+  tasks:
+    - name: Update package cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+    
+    - name: Install tools
+      apt:
+        name:
+          - htop
+          - vim
+          - curl
+          - wget
+          - net-tools
+          - jq
+        state: present
+      when: ansible_os_family == "Debian"
+    
+    - name: Verify installations
+      command: "which {{ item }}"
+      loop:
+        - htop
+        - vim
+        - curl
+        - jq
+      register: tool_paths
+      changed_when: false
+    
+    - name: Display installed tools
+      debug:
+        msg: "{{ item.item }} installed at {{ item.stdout }}"
+      loop: "{{ tool_paths.results }}"
