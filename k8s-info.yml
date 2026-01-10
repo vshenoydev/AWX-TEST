@@ -1,66 +1,67 @@
 ---
 - name: Gather Kubernetes Cluster Information
-  hosts: localhost
+  hosts: all
   become: yes
   
   tasks:
-    - name: Check if kubectl is already installed
-      command: which kubectl
-      register: kubectl_check
-      failed_when: false
-      changed_when: false
+    - name: Get cluster information
+      kubernetes.core.k8s_cluster_info:
+      register: cluster_info
     
-    - name: Download kubectl binary
-      get_url:
-        url: "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
-        dest: /tmp/kubectl
-        mode: '0755'
-      when: kubectl_check.rc != 0
-    
-    - name: Install kubectl to /usr/local/bin
-      copy:
-        src: /tmp/kubectl
-        dest: /usr/local/bin/kubectl
-        mode: '0755'
-        remote_src: yes
-      when: kubectl_check.rc != 0
-    
-    - name: Verify kubectl installation
-      command: kubectl version --client
-      register: kubectl_version
-      changed_when: false
-    
-    - name: Display kubectl version
+    - name: Display cluster version
       debug:
-        msg: "{{ kubectl_version.stdout }}"
+        msg: "Kubernetes Version: {{ cluster_info.version.server.kubernetes.gitVersion }}"
     
     - name: Get all namespaces
-      command: kubectl get namespaces -o json
+      kubernetes.core.k8s_info:
+        kind: Namespace
       register: namespaces
-      changed_when: false
-    
-    - name: Parse namespaces
-      set_fact:
-        ns_list: "{{ (namespaces.stdout | from_json).items | map(attribute='metadata.name') | list }}"
     
     - name: Display namespaces
       debug:
-        msg: "Namespaces: {{ ns_list }}"
+        msg: "Namespaces: {{ namespaces.resources | map(attribute='metadata.name') | list }}"
     
     - name: Get all pods across all namespaces
-      command: kubectl get pods --all-namespaces -o wide
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: ""  # Empty string means all namespaces
       register: all_pods
-      changed_when: false
     
-    - name: Display pods
+    - name: Display pod summary
       debug:
-        msg: "{{ all_pods.stdout_lines }}"
+        msg:
+          - "Total Pods: {{ all_pods.resources | length }}"
+          - "Pods by Namespace:"
     
-    - name: Get cluster info
-      command: kubectl cluster-info
-      register: cluster_info
-      changed_when: false
-    
-    - name: Display cluster info
+    - name: Show pods by namespace
       debug:
-        msg: "{{ cluster_info.stdout_lines }}"
+        msg: "{{ item.metadata.namespace }}/{{ item.metadata.name }} - {{ item.status.phase }}"
+      loop: "{{ all_pods.resources }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+    
+    - name: Get all deployments
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        namespace: ""
+      register: deployments
+    
+    - name: Display deployments
+      debug:
+        msg: "{{ item.metadata.namespace }}/{{ item.metadata.name }} - Replicas: {{ item.spec.replicas }}"
+      loop: "{{ deployments.resources }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+    
+    - name: Get all services
+      kubernetes.core.k8s_info:
+        kind: Service
+        namespace: ""
+      register: services
+    
+    - name: Display services
+      debug:
+        msg: "{{ item.metadata.namespace }}/{{ item.metadata.name }} - Type: {{ item.spec.type }}"
+      loop: "{{ services.resources }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
